@@ -2,12 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
 )
 
 // Book Struct (Model)
@@ -93,6 +96,35 @@ func deleteBook(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(books)
 }
 
+// DB接続確認
+func getDbCon(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	log.Print("DB接続チェック")
+
+	var result string
+	_, err := sqlConnect()
+	if err != nil {
+		result = "DB接続失敗"
+		panic(err.Error())
+	} else {
+		result = "DB接続成功"
+		fmt.Println("DB接続成功")
+	}
+
+	json.NewEncoder(w).Encode(result)
+}
+
+func sqlConnect() (database *gorm.DB, err error) {
+	DBMS := "mysql"
+	USER := "dev"
+	PASS := "devpass"
+	PROTOCOL := "tcp(127.0.0.1:23306)"
+	DBNAME := "godevapp"
+
+	CONNECT := USER + ":" + PASS + "@" + PROTOCOL + "/" + DBNAME + "?charset=utf8&parseTime=true&loc=Asia%2FTokyo"
+	return gorm.Open(DBMS, CONNECT)
+}
+
 func main() {
 	// Initiate Router
 	r := mux.NewRouter()
@@ -107,6 +139,9 @@ func main() {
 	r.HandleFunc("/api/books", createBook).Methods("POST")
 	r.HandleFunc("/api/books/{id}", updateBook).Methods("PUT")
 	r.HandleFunc("/api/books/{id}", deleteBook).Methods("DELETE")
+
+	// DB接続確認
+	r.HandleFunc("/api/dbconcheck", getDbCon).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8000", r))
 }
