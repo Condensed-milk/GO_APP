@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,7 +11,6 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
-	"github.com/jinzhu/gorm"
 )
 
 // Book Struct (Model)
@@ -101,29 +101,55 @@ func getDbCon(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	log.Print("DB接続チェック")
 
-	var result string
-	_, err := sqlConnect()
+	db, err := sql.Open("mysql", "dev:devpass@tcp(127.0.0.1:23306)/godevapp")
 	if err != nil {
-		result = "DB接続失敗"
 		panic(err.Error())
 	} else {
-		result = "DB接続成功"
 		fmt.Println("DB接続成功")
 	}
 
-	json.NewEncoder(w).Encode(result)
+	defer db.Close()
+
+	in, err := db.Prepare("INSERT INTO m_store(name) VALUES(?)")
+
+	if err != nil {
+		fmt.Println("データベース接続失敗")
+		panic(err.Error())
+	} else {
+		fmt.Println("データベース接続成功")
+	}
+
+	defer db.Close()
+
+	result, err := in.Exec("居酒屋０１")
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	lastId, err := result.LastInsertId()
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	fmt.Println(lastId)
+
+	json.NewEncoder(w).Encode(lastId)
 }
 
-func sqlConnect() (database *gorm.DB, err error) {
-	DBMS := "mysql"
-	USER := "dev"
-	PASS := "devpass"
-	PROTOCOL := "tcp(127.0.0.1:23306)"
-	DBNAME := "godevapp"
+// func sqlConnect() (database *gorm.DB, err error) {
+// 	DBMS := "mysql"
+// 	USER := "dev"
+// 	PASS := "devpass"
+// 	PROTOCOL := "tcp(127.0.0.1:23306)"
+// 	DBNAME := "godevapp"
 
-	CONNECT := USER + ":" + PASS + "@" + PROTOCOL + "/" + DBNAME + "?charset=utf8&parseTime=true&loc=Asia%2FTokyo"
-	return gorm.Open(DBMS, CONNECT)
-}
+// 	CONNECT := USER + ":" + PASS + "@" + PROTOCOL + "/" + DBNAME + "?charset=utf8&parseTime=true&loc=Asia%2FTokyo"
+
+// 	sql.Open("mysql", "testuser:password@tcp(localhost:3306)/foo")
+// 	return gorm.Open(DBMS, CONNECT)
+// }
 
 func main() {
 	// Initiate Router
